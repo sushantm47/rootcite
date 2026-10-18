@@ -3,11 +3,11 @@
 import io
 import json
 
-from opspilot.cli import main as cli_main
-from opspilot.domain.models import Alert
-from opspilot.evals.runner import load_cases, run_agent_eval, run_retrieval_eval
-from opspilot.observability.metrics import MetricsLogger
-from opspilot.services.diagnosis import DiagnosisService
+from rootcite.cli import main as cli_main
+from rootcite.domain.models import Alert
+from rootcite.evals.runner import load_cases, run_agent_eval, run_retrieval_eval
+from rootcite.observability.metrics import MetricsLogger
+from rootcite.services.diagnosis import DiagnosisService
 
 from support import GOLDEN, ROOT, ScriptedLLM, submit
 

@@ -1,7 +1,7 @@
 """Agent state-machine tests with a scripted LLM (no network, fully deterministic)."""
 
-from opspilot.domain.models import Alert
-from opspilot.agent.toolkit import SUBMIT_DIAGNOSIS
+from rootcite.domain.models import Alert
+from rootcite.agent.toolkit import SUBMIT_DIAGNOSIS
 
 from support import ScriptedLLM, submit, text, tool_use
 

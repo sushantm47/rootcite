@@ -1,4 +1,4 @@
-from opspilot.agent.guardrails import (
+from rootcite.agent.guardrails import (
     detect_injection,
     luhn_valid,
     redact,

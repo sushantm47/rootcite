@@ -1,4 +1,4 @@
-from opspilot.adapters.telemetry import FixtureTelemetry
+from rootcite.adapters.telemetry import FixtureTelemetry
 
 from support import TELEMETRY_DIR
 

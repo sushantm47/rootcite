@@ -22,9 +22,9 @@ jobs:
       - name: Tests
         run: pytest --cov --cov-report=term-missing --cov-report=xml
       - name: Retrieval quality gate
-        run: opspilot eval retrieval --min-hit-rate 0.9 --out reports/retrieval.json
+        run: rootcite eval retrieval --min-hit-rate 0.9 --out reports/retrieval.json
       - name: Offline agent eval
-        run: opspilot eval agent --out reports/agent.json
+        run: rootcite eval agent --out reports/agent.json
       - uses: actions/upload-artifact@v4
         with:
           name: eval-reports
@@ -35,4 +35,4 @@ jobs:
     needs: quality
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t opspilot:${{ github.sha }} .
+      - run: docker build -t rootcite:${{ github.sha }} .

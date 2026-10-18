@@ -1,6 +1,3 @@
 {
-  "app": "python3 app.py",
-  "context": {
-    "bedrock_model_id": "REPLACE_WITH_BEDROCK_CLAUDE_MODEL_ID"
-  }
+  "app": "python3 app.py"
 }

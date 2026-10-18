@@ -5,9 +5,9 @@ from collections.abc import Callable
 
 import pytest
 
-from opspilot.config import Settings
-from opspilot.container import Container, build_container
-from opspilot.ports import LLMClient
+from rootcite.config import Settings
+from rootcite.container import Container, build_container
+from rootcite.ports import LLMClient
 from support import KNOWLEDGE_DIR, TELEMETRY_DIR
 
 

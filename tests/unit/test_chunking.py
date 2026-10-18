@@ -1,6 +1,6 @@
 import pytest
 
-from opspilot.retrieval.chunking import chunk_markdown
+from rootcite.retrieval.chunking import chunk_markdown
 
 DOC = """# Disk full
 

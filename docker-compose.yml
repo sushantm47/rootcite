@@ -2,12 +2,12 @@ services:
   db:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: opspilot
-      POSTGRES_PASSWORD: opspilot
-      POSTGRES_DB: opspilot
+      POSTGRES_USER: rootcite
+      POSTGRES_PASSWORD: rootcite
+      POSTGRES_DB: rootcite
     ports: ["5432:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U opspilot -d opspilot"]
+      test: ["CMD-SHELL", "pg_isready -U rootcite -d rootcite"]
       interval: 2s
       retries: 30
 
@@ -15,10 +15,10 @@ services:
     build: .
     ports: ["8000:8000"]
     environment:
-      OPSPILOT_STAGE: beta
-      OPSPILOT_INDEX: postgres
-      DATABASE_URL: postgresql://opspilot:opspilot@db:5432/opspilot
-      OPSPILOT_LLM_PROVIDER: ${OPSPILOT_LLM_PROVIDER:-offline}
+      ROOTCITE_STAGE: beta
+      ROOTCITE_INDEX: postgres
+      DATABASE_URL: postgresql://rootcite:rootcite@db:5432/rootcite
+      ROOTCITE_LLM_PROVIDER: ${ROOTCITE_LLM_PROVIDER:-offline}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       db:

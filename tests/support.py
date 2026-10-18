@@ -6,7 +6,7 @@ import copy
 from pathlib import Path
 from typing import Any
 
-from opspilot.domain.models import LLMResponse, TokenUsage, ToolCall
+from rootcite.domain.models import LLMResponse, TokenUsage, ToolCall
 
 ROOT = Path(__file__).resolve().parents[1]
 KNOWLEDGE_DIR = ROOT / "data" / "knowledge"

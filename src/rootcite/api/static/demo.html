@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RootCite live demo: agentic RAG for incident response</title>
+  <meta name="description" content="Try RootCite: an agentic RAG copilot that diagnoses production alerts with cited evidence, guardrails, and human-in-the-loop safety.">
+  <style>
+    :root {
+      --bg: #0b1120; --surface: #111a2e; --surface-2: #18233c; --ink: #e6ecf5; --muted: #94a3b8;
+      --rule: #24324d; --mark: #f4c95d; --ok: #3dd68c; --warn: #f5a524; --bad: #fb7185;
+      --sans: system-ui, -apple-system, "Segoe UI", sans-serif; --mono: ui-monospace, Menlo, Consolas, monospace;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); }
+    a { color: inherit; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
+    header { padding: 2rem 0 1rem; }
+    .brand { font: 700 1.05rem var(--mono); color: var(--mark); margin: 0 0 0.6rem; }
+    h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 0.7rem; }
+    .lede { color: var(--muted); max-width: 70ch; margin: 0 0 1rem; }
+    .links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; font-size: 0.95rem; }
+    .flow { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 1.2rem 0 0; font-size: 0.85rem; }
+    .flow li { padding: 0.3rem 0.7rem; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); }
+    .flow li b { color: var(--ink); }
+    main { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 1.5rem; padding: 1rem 0 3rem; align-items: start; }
+    .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; padding: 1.25rem; }
+    h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.75rem; }
+    .scenarios { display: grid; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .scenario { text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 0.7rem 0.85rem;
+      background: var(--surface-2); border: 1px solid var(--rule); border-radius: 12px; }
+    .scenario:hover, .scenario[aria-pressed="true"] { border-color: var(--mark); }
+    .scenario b { display: block; font-family: var(--mono); font-size: 0.85rem; color: var(--mark); }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.8rem 0 0.3rem; }
+    input, select, textarea { width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+      border: 1px solid var(--rule); border-radius: 10px; padding: 0.6rem 0.75rem; }
+    textarea { min-height: 4.5rem; resize: vertical; }
+    button.run { margin-top: 1rem; width: 100%; font: 700 1rem var(--sans); padding: 0.85rem; border: 0;
+      border-radius: 12px; background: var(--mark); color: #0b1120; cursor: pointer; }
+    button.run:disabled { opacity: 0.6; cursor: progress; }
+    .note { font-size: 0.82rem; color: var(--muted); margin: 0.8rem 0 0; }
+    .empty { color: var(--muted); }
+    .meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.8rem; }
+    .badge { font-size: 0.8rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid; }
+    .good { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+    .attn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+    .root { font-size: 1.15rem; margin: 0 0 0.8rem; }
+    .meter { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 0.2rem 0 1.2rem; }
+    .meter span { display: block; height: 100%; background: var(--mark); width: 0; transition: width 400ms ease; }
+    section + section { margin-top: 1.2rem; }
+    ol, ul { margin: 0; padding-left: 1.2rem; }
+    li { margin-bottom: 0.3rem; }
+    .warn li { color: var(--warn); }
+    .blocked li { color: var(--bad); }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; padding: 0; }
+    .chips li { font: 0.8rem var(--mono); padding: 0.2rem 0.55rem; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--rule); margin: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    td.id { font-family: var(--mono); white-space: nowrap; }
+    .cited td.id { color: #0b1120; background: var(--mark); border-radius: 4px; }
+    .flag { color: var(--bad); font-weight: 600; }
+    .error { color: var(--bad); }
+    footer { color: var(--muted); font-size: 0.85rem; padding: 0 0 2rem; }
+    @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <p class="brand">RootCite</p>
+    <h1>Diagnose a production alert with an AI agent that shows its evidence.</h1>
+    <p class="lede">Pick an incident. RootCite searches runbooks and past postmortems, checks recent deploys,
+      metrics, and logs through tool calls, and returns a diagnosis that cites its evidence. Code then
+      verifies every citation, and anything that would change production is blocked for human approval.</p>
+    <p class="links"><a id="repo" href="#" hidden>Source on GitHub</a><a href="/docs">API docs</a></p>
+    <ol class="flow" aria-label="How a diagnosis is produced">
+      <li><b>Retrieve</b> runbooks, hybrid search</li>
+      <li><b>Investigate</b> deploys, metrics, logs</li>
+      <li><b>Synthesize</b> structured diagnosis</li>
+      <li><b>Verify</b> citations checked in code</li>
+    </ol>
+  </header>
+
+  <main class="wrap">
+    <div class="panel">
+      <h2>1. Choose an incident</h2>
+      <div class="scenarios" id="scenarios"></div>
+      <form id="form">
+        <h2>2. Or edit the alert</h2>
+        <label for="service">Service</label>
+        <select id="service" required></select>
+        <label for="title">Alert title</label>
+        <input id="title" maxlength="300" required>
+        <label for="description">Description</label>
+        <textarea id="description" maxlength="4000"></textarea>
+        <button class="run" id="run" type="submit">Run diagnosis</button>
+        <p class="note">Tip: the checkout-api logs contain a planted prompt-injection attempt. Watch the
+          guardrails flag it.</p>
+      </form>
+    </div>
+
+    <div class="panel" aria-live="polite">
+      <h2>3. Diagnosis</h2>
+      <div id="result"><p class="empty">Run a diagnosis to see the root cause, the evidence it cites,
+        the tools the agent called, and any guardrail warnings.</p></div>
+    </div>
+  </main>
+
+  <footer class="wrap">
+    <p id="model-note">Runs on sample telemetry for five fictional services. Requests are rate-limited per visitor.</p>
+  </footer>
+
+  <script>
+    // Every value from the API is inserted with textContent, never as HTML.
+    const $ = (id) => document.getElementById(id);
+    const el = (tag, text, cls) => {
+      const node = document.createElement(tag);
+      if (text !== undefined && text !== null) node.textContent = String(text);
+      if (cls) node.className = cls;
+      return node;
+    };
+    let scenarios = [];
+
+    function choose(index) {
+      const s = scenarios[index];
+      $("service").value = s.service;
+      $("title").value = s.title;
+      $("description").value = s.description;
+      document.querySelectorAll(".scenario").forEach((b, i) => b.setAttribute("aria-pressed", String(i === index)));
+    }
+
+    async function init() {
+      try {
+        const health = await (await fetch("/health")).json();
+        if (health.repo_url) { $("repo").href = health.repo_url; $("repo").hidden = false; }
+        const model = health.llm_provider === "offline"
+          ? "the deterministic offline planner (no LLM key configured)"
+          : `${health.model} (${health.llm_provider})`;
+        $("model-note").textContent =
+          `Runs on sample telemetry for five fictional services, using ${model}. Requests are rate-limited per visitor.`;
+      } catch { /* the page still works without this */ }
+
+      scenarios = await (await fetch("/v1/scenarios")).json();
+      const list = $("scenarios");
+      const select = $("service");
+      scenarios.forEach((s, i) => {
+        const b = el("button", null, "scenario");
+        b.type = "button";
+        b.append(el("b", s.service), el("span", s.title));
+        b.addEventListener("click", () => choose(i));
+        list.append(b);
+        select.append(new Option(s.service, s.service));
+      });
+      choose(0);
+    }
+
+    function section(title, child) {
+      const s = el("section");
+      s.append(el("h2", title), child);
+      return s;
+    }
+
+    function render(d) {
+      const out = $("result");
+      out.replaceChildren();
+      const meta = el("p", null, "meta");
+      meta.append(
+        el("span", `${(d.latency_ms / 1000).toFixed(1)} s`),
+        el("span", `${d.usage.input_tokens + d.usage.output_tokens} tokens`),
+        el("span", `${d.tools_called.length} tool calls`),
+        d.cached ? el("span", "served from semantic cache") : "",
+      );
+      const badges = el("p", null, "badges");
+      badges.append(
+        el("span", d.grounded ? "Grounded in evidence" : "Not grounded", `badge ${d.grounded ? "good" : "attn"}`),
+        el("span", d.needs_human ? "Needs human review" : "Safe to act on", `badge ${d.needs_human ? "attn" : "good"}`),
+      );
+      const meter = el("div", null, "meter");
+      const bar = el("span");
+      meter.append(bar);
+      requestAnimationFrame(() => { bar.style.width = `${Math.round(d.confidence * 100)}%`; });
+
+      out.append(meta, section("Root cause", el("p", d.root_cause, "root")), badges,
+        el("p", `Confidence ${Math.round(d.confidence * 100)}%`, "note"), meter);
+
+      if (d.recommended_actions.length) {
+        const ol = el("ol");
+        d.recommended_actions.forEach((a) => ol.append(el("li", a)));
+        out.append(section("Recommended actions", ol));
+      }
+      if (d.warnings.length) {
+        const ul = el("ul", null, "warn");
+        d.warnings.forEach((w) => ul.append(el("li", w)));
+        out.append(section("Guardrail warnings", ul));
+      }
+      if (d.blocked_actions.length) {
+        const ul = el("ul", null, "blocked");
+        d.blocked_actions.forEach((a) => ul.append(el("li", a)));
+        out.append(section("Blocked: needs human approval", ul));
+      }
+      if (d.tools_called.length) {
+        const ul = el("ul", null, "chips");
+        d.tools_called.forEach((t) => ul.append(el("li", t)));
+        out.append(section("Tools the agent called", ul));
+      }
+      const table = el("table");
+      const head = el("tr");
+      ["ID", "Kind", "Source", "Section", ""].forEach((h) => head.append(el("th", h)));
+      table.append(head);
+      const cited = new Set(d.citations);
+      d.evidence.forEach((e) => {
+        const tr = el("tr", null, cited.has(e.evidence_id) ? "cited" : "");
+        tr.append(el("td", e.evidence_id, "id"), el("td", e.kind), el("td", e.source), el("td", e.section),
+          el("td", e.flagged ? "injection suspected" : "", "flag"));
+        table.append(tr);
+      });
+      const wrap = el("div");
+      wrap.append(el("p", "Highlighted rows are the evidence the diagnosis cites.", "note"), table);
+      out.append(section("Evidence", wrap));
+    }
+
+    $("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const run = $("run");
+      run.disabled = true;
+      run.textContent = "Investigating…";
+      const out = $("result");
+      out.replaceChildren(el("p", "Retrieving runbooks, checking deploys, metrics, and logs…", "empty"));
+      try {
+        const res = await fetch("/v1/diagnoses", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            alert_id: `demo-${Date.now()}`,
+            service: $("service").value,
+            title: $("title").value,
+            description: $("description").value,
+          }),
+        });
+        if (res.status === 429) {
+          const wait = res.headers.get("retry-after") || "60";
+          throw new Error(`Rate limit reached. Try again in ${wait} seconds.`);
+        }
+        if (res.status === 503) throw new Error("The model is temporarily unavailable. Try again in a minute.");
+        if (!res.ok) throw new Error(`Request failed (${res.status}).`);
+        render(await res.json());
+      } catch (err) {
+        out.replaceChildren(el("p", err.message, "error"));
+      } finally {
+        run.disabled = false;
+        run.textContent = "Run diagnosis";
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

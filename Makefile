@@ -13,17 +13,17 @@ test:               ## Unit + integration tests with coverage
 	pytest --cov --cov-report=term-missing
 
 eval:               ## Offline evals (retrieval is a CI quality gate)
-	opspilot eval retrieval --min-hit-rate 0.9 --out reports/retrieval.json
-	opspilot eval agent --out reports/agent.json
+	rootcite eval retrieval --min-hit-rate 0.9 --out reports/retrieval.json
+	rootcite eval agent --out reports/agent.json
 
 run:                ## API on http://localhost:8000/docs
-	uvicorn opspilot.api.app:create_app --factory --reload
+	uvicorn rootcite.api.app:create_app --factory --reload
 
 docker-up:          ## API + Postgres/pgvector
 	docker compose up --build
 
 mcp:                ## MCP server over stdio (for Claude Desktop / Claude Code)
-	python -m opspilot.mcp_server
+	python -m rootcite.mcp_server
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage reports build *.egg-info

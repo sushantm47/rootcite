@@ -1,4 +1,4 @@
-"""OpsPilot on AWS: ECS Fargate behind an ALB, RDS PostgreSQL with pgvector, Claude on Bedrock.
+"""RootCite on AWS: ECS Fargate behind an ALB, RDS PostgreSQL with pgvector, Claude on Bedrock.
 
 * No API keys: the task role calls Bedrock with IAM (least privilege: InvokeModel only).
 * Database credentials live in Secrets Manager and are injected at runtime.
@@ -16,8 +16,10 @@ from aws_cdk import aws_rds as rds
 from constructs import Construct
 
 
-class OpsPilotStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, *, stage: str, **kwargs) -> None:
+class RootCiteStack(Stack):
+    def __init__(
+        self, scope: Construct, construct_id: str, *, stage: str, bedrock_model_id: str, **kwargs
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
         is_prod = stage == "prod"
 
@@ -32,8 +34,8 @@ class OpsPilotStack(Stack):
             ),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
-            credentials=rds.Credentials.from_generated_secret("opspilot"),
-            database_name="opspilot",
+            credentials=rds.Credentials.from_generated_secret("rootcite"),
+            database_name="rootcite",
             multi_az=is_prod,
             storage_encrypted=True,
             backup_retention=Duration.days(7 if is_prod else 1),
@@ -54,13 +56,13 @@ class OpsPilotStack(Stack):
                 image=ecs.ContainerImage.from_asset(".."),
                 container_port=8000,
                 environment={
-                    "OPSPILOT_STAGE": stage,
-                    "OPSPILOT_LLM_PROVIDER": "bedrock",
-                    "OPSPILOT_MODEL": self.node.try_get_context("bedrock_model_id") or "",
-                    "OPSPILOT_INDEX": "postgres",
+                    "ROOTCITE_STAGE": stage,
+                    "ROOTCITE_LLM_PROVIDER": "bedrock",
+                    "ROOTCITE_MODEL": bedrock_model_id,
+                    "ROOTCITE_INDEX": "postgres",
                     "AWS_REGION": self.region,
                     "DB_HOST": db.db_instance_endpoint_address,
-                    "DB_NAME": "opspilot",
+                    "DB_NAME": "rootcite",
                 },
                 secrets={
                     "DB_USER": ecs.Secret.from_secrets_manager(db.secret, "username"),

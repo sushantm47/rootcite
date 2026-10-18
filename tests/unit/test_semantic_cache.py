@@ -1,6 +1,6 @@
-from opspilot.adapters.embeddings import HashingEmbedder
-from opspilot.domain.models import Alert, Diagnosis
-from opspilot.resilience.semantic_cache import SemanticCache
+from rootcite.adapters.embeddings import HashingEmbedder
+from rootcite.domain.models import Alert, Diagnosis
+from rootcite.resilience.semantic_cache import SemanticCache
 
 
 class FakeClock:

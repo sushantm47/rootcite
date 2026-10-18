@@ -1,11 +1,11 @@
 import numpy as np
 
-from opspilot.adapters.embeddings import HashingEmbedder
-from opspilot.adapters.memory_index import InMemoryIndex
-from opspilot.domain.models import Chunk, ScoredChunk
-from opspilot.retrieval.bm25 import BM25
-from opspilot.retrieval.hybrid import HybridRetriever, SearchMode, reciprocal_rank_fusion
-from opspilot.retrieval.text import tokenize
+from rootcite.adapters.embeddings import HashingEmbedder
+from rootcite.adapters.memory_index import InMemoryIndex
+from rootcite.domain.models import Chunk, ScoredChunk
+from rootcite.retrieval.bm25 import BM25
+from rootcite.retrieval.hybrid import HybridRetriever, SearchMode, reciprocal_rank_fusion
+from rootcite.retrieval.text import tokenize
 
 
 def chunk(cid: str, text: str) -> Chunk:

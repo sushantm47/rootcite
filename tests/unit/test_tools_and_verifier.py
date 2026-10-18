@@ -1,6 +1,6 @@
-from opspilot.agent.tools import ToolRegistry, ToolSpec, validate_arguments
-from opspilot.agent.verifier import NO_DIAGNOSIS, verify_draft
-from opspilot.domain.models import Evidence, ToolCall
+from rootcite.agent.tools import ToolRegistry, ToolSpec, validate_arguments
+from rootcite.agent.verifier import NO_DIAGNOSIS, verify_draft
+from rootcite.domain.models import Evidence, ToolCall
 
 SCHEMA = {
     "type": "object",

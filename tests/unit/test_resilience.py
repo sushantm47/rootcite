@@ -1,9 +1,9 @@
 import pytest
 
-from opspilot.domain.errors import DependencyUnavailableError, RetryableError
-from opspilot.resilience.circuit_breaker import BreakerState, CircuitBreaker
-from opspilot.resilience.resilient_llm import ResilientLLM
-from opspilot.resilience.retry import backoff_delay, retry_with_backoff
+from rootcite.domain.errors import DependencyUnavailableError, RetryableError
+from rootcite.resilience.circuit_breaker import BreakerState, CircuitBreaker
+from rootcite.resilience.resilient_llm import ResilientLLM
+from rootcite.resilience.retry import backoff_delay, retry_with_backoff
 
 from support import FlakyLLM, text
 

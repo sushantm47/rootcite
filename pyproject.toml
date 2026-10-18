@@ -3,9 +3,9 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "opspilot"
-version = "0.1.0"
-description = "Agentic RAG copilot for on-call incident response"
+name = "rootcite"
+version = "0.3.0"
+description = "Evidence-cited root-cause analysis for production alerts, built as an agentic RAG system"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -30,22 +30,25 @@ dev = [
 ]
 
 [project.scripts]
-opspilot = "opspilot.cli:main"
+rootcite = "rootcite.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+rootcite = ["api/static/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 
 [tool.coverage.run]
-source = ["opspilot"]
+source = ["rootcite"]
 # Thin vendor adapters are exercised against real services, not in unit tests.
 omit = [
-    "*/opspilot/adapters/claude.py",
-    "*/opspilot/adapters/pgvector_index.py",
-    "*/opspilot/mcp_server.py",
+    "*/rootcite/adapters/claude.py",
+    "*/rootcite/adapters/pgvector_index.py",
+    "*/rootcite/mcp_server.py",
 ]
 
 [tool.coverage.report]
@@ -62,7 +65,7 @@ select = ["E", "F", "B", "UP"]
 
 [tool.mypy]
 python_version = "3.11"
-files = ["src/opspilot"]
+files = ["src/rootcite"]
 disallow_untyped_defs = true
 no_implicit_optional = true
 warn_unused_ignores = true

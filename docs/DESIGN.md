@@ -1,21 +1,21 @@
-# OpsPilot: Design Document
+# RootCite: Design Document
 
-Status: v1 implemented · Author: <your name> · Reviewers: <names>
+Status: Implemented (v0.3.0) · Author: Sushant Mudalgi · Previously named OpsPilot
 
 ## 1. Context
 
 When an alarm pages an on-call engineer, the first 15–30 minutes typically go to
 correlation: is there a recent deploy, which metric moved first, which runbook applies,
 has this happened before? That knowledge exists in runbooks, postmortems, dashboards,
-and the deployment pipeline, but it's scattered. OpsPilot collects it for a given alert
+and the deployment pipeline, but it's scattered. RootCite collects it for a given alert
 and proposes a cited diagnosis so the engineer starts from evidence instead of a blank
 page.
 
-## 2. Tenets (unless you know better ones)
+## 2. Tenets
 
 1. **Evidence over eloquence.** Every claim cites something the engineer can click. An
    uncited answer is treated as a guess and labeled as one.
-2. **Humans own production.** OpsPilot reads; people write. Side-effect actions are
+2. **Humans own production.** RootCite reads; people write. Side-effect actions are
    proposed, never executed.
 3. **Bounded by construction.** Cost, latency, and tool use have hard limits enforced in
    code, not in the prompt.
@@ -53,12 +53,14 @@ Hexagonal (ports and adapters). The core packages (`domain`, `retrieval`, `agent
 `services`) depend only on Protocols in `ports/`. `container.py` is the single
 composition root that selects adapters per stage.
 
-| Port | Local / CI adapter | Production adapter |
-|---|---|---|
-| `LLMClient` | `OfflineLLM` (deterministic) | `ClaudeLLM` via Bedrock, wrapped in `ResilientLLM` |
-| `SearchIndex` | `InMemoryIndex` (NumPy + BM25) | `PgVectorIndex` (RDS Postgres 16) |
-| `Embedder` | `HashingEmbedder` | `SentenceTransformerEmbedder` |
-| `TelemetrySource` | `FixtureTelemetry` (JSON) | CloudWatch Metrics / Logs Insights + deploy API (future) |
+| Port | Local and CI | Public demo | Production |
+|---|---|---|---|
+| `LLMClient` | `OfflineLLM` (deterministic) | `OpenAICompatLLM` (Groq) | `ClaudeLLM` via Bedrock |
+| `SearchIndex` | `InMemoryIndex` (NumPy + BM25) | `InMemoryIndex` | `PgVectorIndex` (RDS Postgres 16) |
+| `Embedder` | `HashingEmbedder` | `HashingEmbedder` | `SentenceTransformerEmbedder` |
+| `TelemetrySource` | `FixtureTelemetry` (JSON) | `FixtureTelemetry` | CloudWatch Metrics and Logs Insights, deploy API (planned) |
+
+Model adapters are wrapped in `ResilientLLM`, which adds retries and a circuit breaker.
 
 Stage config (`local → beta → gamma → prod`) is validated at startup: gamma and prod
 refuse to boot with the offline model or the in-memory index.
@@ -70,7 +72,7 @@ refuse to boot with the offline model or the in-memory index.
    TTL 15 min). Alert storms fire the same page from many hosts; this avoids N agent runs.
 3. **RETRIEVE**: hybrid search over runbooks and postmortems; top-k chunks become
    evidence E1..Ek.
-4. **INVESTIGATE**: Claude calls tools (`list_recent_deploys`, `get_metric`,
+4. **INVESTIGATE**: the model calls tools (`list_recent_deploys`, `get_metric`,
    `search_logs`, `search_knowledge_base`). Each output is screened (injection
    detection, redaction, truncation), wrapped in `<untrusted_data>`, and assigned an
    evidence ID. Side-effect tools return `BLOCKED` and are recorded for approval.
@@ -101,8 +103,8 @@ parameter (k = 60), and on our golden set lifts MRR from 0.909 (either retriever
 to 1.0.
 
 **Forced tool call vs. "reply in JSON".** Prompting for JSON fails occasionally and
-needs repair logic. A forced `submit_diagnosis` tool call returns arguments validated
-against a JSON schema by the API.
+needs repair logic. A forced `submit_diagnosis` tool call returns arguments that conform
+to a JSON schema, and the verifier validates them again.
 
 **Bedrock vs. direct Anthropic API.** Bedrock keeps traffic inside AWS, uses IAM roles
 instead of API keys, and fits existing compliance boundaries. The adapter supports both
@@ -110,6 +112,18 @@ through the same SDK, so local development can use an API key.
 
 **Hashing embedder for CI.** Deterministic, zero-download, and good enough to catch
 regressions in chunking and fusion. Neural embeddings are used where quality matters.
+
+**Public demo on Hugging Face Spaces vs. the AWS stack.** The production design is ECS
+Fargate with RDS and Bedrock (section 5). For a public demo that anyone can try, that stack
+has a fixed monthly cost even when idle. The demo instead runs the same container on a free
+Hugging Face Space, with the in-memory index and an OpenAI-compatible model on Groq's free
+tier, deployed by GitHub Actions. The hexagonal design is what makes this a configuration
+change rather than a fork: the adapters differ, the agent and guardrails are identical.
+
+**OpenAI-compatible adapter.** One adapter covers Groq, OpenAI, Together, vLLM, and Ollama.
+It translates the agent's provider-neutral tool-calling transcript to the OpenAI wire format
+and back, with no SDK dependency. Malformed tool arguments are passed to the tool registry as
+an invalid field, so the model receives a validation error and can correct itself.
 
 ## 8. Security and threat model (OWASP Top 10 for LLM apps)
 
@@ -120,6 +134,7 @@ regressions in chunking and fusion. Neural embeddings are used where quality mat
 | LLM06 Excessive agency | Model decides to roll back production | Side-effect tools are flagged in the registry and never executed; surfaced as `blocked_actions` |
 | LLM09 Misinformation / hallucination | Confident answer citing a non-existent runbook | Citation verifier + confidence caps + `grounded` flag |
 | LLM10 Unbounded consumption | Tool loop that never ends | Step, tool-call, and token budgets; per-call `max_tokens` |
+| Abuse of the public demo | Scripted floods of the diagnose endpoint | Per-visitor sliding-window rate limit (429 with Retry-After), ingestion disabled, free-tier model with no card attached |
 | Classic | Path traversal via `service` | Input pattern validation at the API; fixture adapter resolves paths inside its root |
 
 Regex injection detection is a first layer, not a guarantee. The real control is that
@@ -136,13 +151,14 @@ prompt and tool schemas, and routing simple alerts to a smaller model.
 
 ## 10. Operational excellence
 
-Metrics (EMF, namespace `OpsPilot`, dimensions `Operation`, `Stage`): `Latency`,
+Metrics (EMF, namespace `RootCite`, dimensions `Operation`, `Stage`): `Latency`,
 `InputTokens`, `OutputTokens`, `ToolCalls`, `CacheHit`, `Grounded`, `NeedsHuman`,
 `BlockedActions`, `Confidence`, `Fault`.
 
-Alarms (the first two are defined in `infra/stack.py`): ALB p99 target response time > 20 s for 5 min; target 5xx > 5/min for 3 min;
-`Grounded` average < 0.9 over 1 hour (quality regression); circuit-breaker-open
-503s. Responses are in [RUNBOOK.md](RUNBOOK.md).
+Alarms: ALB p99 target response time above 20 s for 5 minutes and target 5xx above
+5 per minute for 3 minutes (both defined in `infra/stack.py`); `Grounded` average below
+0.9 over an hour (a quality regression); and circuit-breaker 503s. Responses are in
+[RUNBOOK.md](RUNBOOK.md).
 
 Resilience: one retry policy (SDK retries disabled to avoid retry amplification),
 full-jitter backoff, a circuit breaker that counts only dependency failures, and ECS
@@ -154,12 +170,15 @@ Unit tests cover chunking, BM25, RRF, guardrails, the verifier, retries, the cir
 breaker, and cache behavior. Agent tests use a scripted LLM to drive exact tool-call
 sequences: happy path, budget exhaustion, blocked actions, invalid tool arguments,
 injection, and missing submissions. Integration tests run the full pipeline on the
-sample corpus offline and exercise the HTTP contract. Evals run in CI with a quality
-gate; a Claude-backed eval runs before each prompt or model change (`PROMPT_VERSION`).
+sample corpus offline and exercise the HTTP contract, including demo mode and rate
+limiting. The OpenAI-compatible adapter is tested against a scripted fake of the provider
+API, including a complete agent run. Evals run in CI with a quality gate; an eval against a
+real model runs before each prompt or model change (`PROMPT_VERSION`).
 
 ## 12. Rollout plan
 
-1. **Beta**: offline model, internal demo data.
+1. **Beta**: sample data; offline model or an OpenAI-compatible model. The public demo runs
+   at this stage.
 2. **Gamma**: Claude on Bedrock, **shadow mode**: diagnoses are posted to the incident
    channel but not paged; on-call engineers rate them (thumbs up/down with reason).
 3. **Prod**: opt-in per team; success metric is time-to-first-correct-hypothesis and
@@ -167,6 +186,6 @@ gate; a Claude-backed eval runs before each prompt or model change (`PROMPT_VERS
 
 ## 13. Open questions
 
-- Feedback loop: turn engineer ratings into new golden cases automatically?
-- Multi-tenant access control: should retrieval filter documents by team ownership?
-- When should OpsPilot re-run as an incident evolves (new alarms, new deploys)?
+- Should engineer ratings be turned into new golden cases automatically?
+- Should retrieval filter documents by team ownership in a multi-tenant deployment?
+- When should RootCite re-run as an incident evolves, for example on new alarms or deploys?
