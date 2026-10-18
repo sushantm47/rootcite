@@ -13,6 +13,7 @@ from functools import lru_cache
 from importlib.resources import files
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from rootcite import __version__
@@ -30,6 +31,7 @@ from rootcite.domain.errors import (
     DependencyUnavailableError,
     InvalidRequestError,
     LLMRequestError,
+    QuotaExceededError,
     RetryableError,
 )
 from rootcite.observability.logging import configure_logging, request_id_var
@@ -58,6 +60,15 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     app = FastAPI(title="RootCite", version=__version__)
     app.state.container = c
+    if c.settings.allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(c.settings.allowed_origins),
+            allow_methods=["GET", "POST"],
+            allow_headers=["content-type"],
+            expose_headers=["retry-after", "x-request-id"],
+            max_age=86_400,
+        )
     rate = c.settings.rate_limit_per_minute
     limiter = SlidingWindowLimiter(rate, window_seconds=60) if rate > 0 else None
 
@@ -111,6 +122,14 @@ def create_app(container: Container | None = None) -> FastAPI:
             headers={"retry-after": "30"},
         )
 
+    @app.exception_handler(QuotaExceededError)
+    async def quota_exceeded(_: Request, exc: QuotaExceededError) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content={"error": str(exc), "reason": "daily_budget"},
+            headers={"retry-after": str(max(1, math.ceil(exc.retry_after_seconds)))},
+        )
+
     @app.exception_handler(LLMRequestError)
     async def llm_rejected(_: Request, exc: LLMRequestError) -> JSONResponse:
         log.error("model provider rejected the request", extra={"error": str(exc)})
@@ -138,6 +157,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             model="offline planner" if offline else c.settings.model,
             public_demo=c.settings.public_demo,
             repo_url=c.settings.repo_url,
+            live_runs_remaining=c.run_budget.remaining() if c.run_budget else None,
         )
 
     @app.post("/v1/diagnoses", response_model=DiagnosisResponse)

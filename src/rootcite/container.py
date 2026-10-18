@@ -16,6 +16,7 @@ from rootcite.config import Settings
 from rootcite.observability.metrics import MetricsLogger
 from rootcite.ports import Embedder, LLMClient, SearchIndex, TelemetrySource
 from rootcite.resilience.circuit_breaker import CircuitBreaker
+from rootcite.resilience.rate_limit import DailyBudget
 from rootcite.resilience.resilient_llm import ResilientLLM
 from rootcite.resilience.semantic_cache import SemanticCache
 from rootcite.retrieval.hybrid import HybridRetriever
@@ -35,6 +36,7 @@ class Container:
     agent: IncidentAgent
     diagnosis: DiagnosisService
     ingestion: IngestionService
+    run_budget: DailyBudget | None = None
 
 
 def _embedder(settings: Settings) -> Embedder:
@@ -97,6 +99,7 @@ def build_container(
     cache = SemanticCache(
         embedder, threshold=settings.cache_similarity, ttl_seconds=settings.cache_ttl_seconds
     )
+    run_budget = DailyBudget(settings.daily_run_limit) if settings.daily_run_limit > 0 else None
     return Container(
         settings=settings,
         embedder=embedder,
@@ -112,6 +115,8 @@ def build_container(
             metrics_factory=lambda operation: MetricsLogger(
                 operation, stream=metrics_stream, dimensions={"Stage": settings.stage.value}
             ),
+            run_budget=run_budget,
         ),
         ingestion=IngestionService(index, embedder),
+        run_budget=run_budget,
     )

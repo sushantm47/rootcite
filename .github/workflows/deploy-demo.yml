@@ -1,22 +1,14 @@
 name: Deploy demo
 
-# Publishes the live demo to a Hugging Face Space (free CPU, no card needed) whenever the
-# application changes. Setup, once:
-#   1. Create a Docker Space on huggingface.co.
-#   2. Repo variable HF_SPACE = "<hf-username>/<space-name>"
-#      (Settings → Secrets and variables → Actions → Variables).
-#   3. Repo secret HF_TOKEN = a Hugging Face access token with write permission.
-#   4. In the Space's settings, add the secret ROOTCITE_LLM_API_KEY (a free Groq key).
+# Deploys the public demo on Render after CI succeeds on main, or on demand.
+# One-time setup: create the service from render.yaml (Render: New → Blueprint), copy the
+# service's Deploy Hook URL (Settings → Deploy Hook), and save it as the repository secret
+# RENDER_DEPLOY_HOOK_URL.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - "src/**"
-      - "data/**"
-      - "Dockerfile"
-      - "pyproject.toml"
-      - "deploy/huggingface/**"
-      - ".github/workflows/deploy-demo.yml"
   workflow_dispatch:
 
 permissions:
@@ -28,39 +20,19 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
-      HF_SPACE: ${{ vars.HF_SPACE }}
-      HAS_TOKEN: ${{ secrets.HF_TOKEN != '' }}
+      HAS_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Explain missing setup
-        if: env.HAS_TOKEN != 'true' || env.HF_SPACE == ''
-        run: echo "::notice::Demo not deployed. Set the HF_SPACE variable and HF_TOKEN secret (see the comment at the top of this workflow)."
+        if: env.HAS_HOOK != 'true'
+        run: echo "::notice::Demo not deployed. Add the RENDER_DEPLOY_HOOK_URL secret (see docs/DEMO.md)."
 
-      - name: Assemble the Space
-        if: env.HAS_TOKEN == 'true' && env.HF_SPACE != ''
-        run: |
-          mkdir space
-          cp -r src data Dockerfile pyproject.toml space/
-          cp deploy/huggingface/README.md space/README.md
-          # Demo settings: public mode (rate limit, no ingestion) and a link back to the code.
-          cat >> space/Dockerfile <<EOF
-          ENV ROOTCITE_PUBLIC_DEMO=true \
-              ROOTCITE_REPO_URL=${{ github.server_url }}/${{ github.repository }}
-          EOF
-
-      - name: Push to Hugging Face
-        if: env.HAS_TOKEN == 'true' && env.HF_SPACE != ''
+      - name: Trigger the Render deploy
+        if: env.HAS_HOOK == 'true'
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          cd space
-          git init -q -b main
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git add -A
-          git commit -q -m "Deploy ${GITHUB_SHA::7} from GitHub"
-          git push --force -q "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" main
-          echo "::notice::Deployed to https://huggingface.co/spaces/${HF_SPACE}"
+          curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL" > /dev/null
+          echo "::notice::Render deploy triggered for ${{ github.event.workflow_run.head_sha || github.sha }}"

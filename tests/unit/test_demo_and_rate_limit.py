@@ -60,3 +60,52 @@ def test_public_demo_defaults_to_a_rate_limit():
     assert Settings.from_env({}).rate_limit_per_minute == 0
     with pytest.raises(ConfigurationError):
         Settings.from_env({"ROOTCITE_LLM_PROVIDER": "openai"})  # no key
+
+
+# ----- daily budget -----
+
+import io  # noqa: E402
+
+from rootcite.container import build_container  # noqa: E402
+from rootcite.domain.errors import QuotaExceededError  # noqa: E402
+from rootcite.domain.models import Alert  # noqa: E402
+from rootcite.resilience.rate_limit import DailyBudget  # noqa: E402
+
+from support import KNOWLEDGE_DIR  # noqa: E402
+
+
+def test_daily_budget_resets_at_midnight_utc():
+    clock = Clock()
+    clock.now = 86_400 * 10 + 3_600  # 01:00 UTC
+    budget = DailyBudget(2, clock=clock)
+    assert budget.try_consume() and budget.try_consume()
+    assert not budget.try_consume() and budget.remaining() == 0
+    assert budget.seconds_until_reset() == pytest.approx(23 * 3_600)
+    clock.now = 86_400 * 11 + 5
+    assert budget.remaining() == 2 and budget.try_consume()
+
+
+def test_cache_hits_do_not_spend_the_daily_budget():
+    settings = Settings(knowledge_dir=KNOWLEDGE_DIR, telemetry_dir=TELEMETRY_DIR, daily_run_limit=1)
+    container = build_container(settings, metrics_stream=io.StringIO())
+    container.ingestion.ingest_directory(settings.knowledge_dir)
+    alert = Alert("a1", "checkout-api", "p99 latency above 2s and 5xx errors rising")
+
+    first = container.diagnosis.diagnose(alert)
+    repeat = container.diagnosis.diagnose(Alert("a2", alert.service, alert.title))
+    assert not first.cached and repeat.cached, "the repeat is served from cache"
+    assert container.run_budget.remaining() == 0
+
+    with pytest.raises(QuotaExceededError) as err:
+        container.diagnosis.diagnose(Alert("a3", "auth-gateway", "TLS handshake failures"))
+    assert err.value.retry_after_seconds > 0
+
+
+def test_demo_settings_parse_origins_and_default_budget():
+    s = Settings.from_env({
+        "ROOTCITE_PUBLIC_DEMO": "true",
+        "ROOTCITE_ALLOWED_ORIGINS": "https://sushantm47.github.io/, https://example.com",
+    })
+    assert s.allowed_origins == ("https://sushantm47.github.io", "https://example.com")
+    assert s.daily_run_limit == 100
+    assert Settings.from_env({}).daily_run_limit == 0

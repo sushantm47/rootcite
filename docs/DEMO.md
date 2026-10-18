@@ -5,11 +5,11 @@ hosting:
 
 | | Production design | Public demo |
 |---|---|---|
-| Hosting | ECS Fargate behind an ALB (AWS CDK) | Hugging Face Space (Docker, free CPU) |
+| Hosting | ECS Fargate behind an ALB (AWS CDK) | Render web service (Docker, free plan) |
 | Model | Claude on Amazon Bedrock | `openai/gpt-oss-20b` on Groq's free tier |
 | Index | PostgreSQL + pgvector | In-memory (rebuilt from `data/knowledge` at startup) |
 | Telemetry | CloudWatch (planned adapter) | Sample fixtures for five fictional services |
-| Deploys | CDK | GitHub Actions on every push |
+| Deploys | CDK | GitHub Actions, after CI passes |
 
 Only adapters and settings differ. The agent, tools, guardrails, and verifier are identical.
 
@@ -26,6 +26,10 @@ highlighted. All API output is rendered as text, never as HTML.
 
 - **A per-visitor rate limit** (10 diagnoses a minute by default, `ROOTCITE_RATE_LIMIT_PER_MINUTE`),
   answered with HTTP 429 and `Retry-After`.
+- **A daily budget of live runs** (100 by default, `ROOTCITE_DAILY_RUN_LIMIT`), which keeps
+  the demo within the model provider's free quota. Answers served from the semantic cache
+  don't count, and `render.yaml` keeps cached answers for 24 hours, so repeated runs of the
+  sample incidents cost nothing.
 - **No writes:** `POST /v1/ingest` returns 403.
 - The usual limits still apply: input validation, step, tool-call, and token budgets, and
   blocked side-effect tools.
@@ -33,21 +37,28 @@ highlighted. All API output is rendered as text, never as HTML.
 If the model is unavailable, the API answers 503 with `Retry-After` instead of failing
 silently. With no key at all, the demo runs the deterministic offline planner.
 
+## Hosting the UI on a static site
+
+The API also accepts requests from the origins listed in `ROOTCITE_ALLOWED_ORIGINS`, so the
+demo UI can be served from a static site that never sleeps. Such a page can wake the API in
+the background (a `GET /health` request uses no model tokens), show a recorded example while
+the service starts, and enable live runs once `/health` responds.
+
 ## Deployment (one-time setup)
 
-1. Create a free account at https://huggingface.co and a new **Space**: SDK **Docker**,
-   template **Blank**, hardware **CPU basic (free)**.
-2. In the Space's **Settings → Variables and secrets**, add the secret
-   `ROOTCITE_LLM_API_KEY` with a Groq API key.
-3. Create a Hugging Face access token with **write** permission (Settings → Access Tokens).
-4. In the GitHub repo, **Settings → Secrets and variables → Actions**:
-   - secret `HF_TOKEN`: the token from step 3
-   - variable `HF_SPACE`: `<hf-username>/<space-name>`
-5. Push to `main`, or run the **Deploy demo** workflow from the Actions tab.
+The service is defined in `render.yaml` (Docker runtime, free plan, health check on
+`/health`, demo settings). Render's free plan needs no credit card.
 
-The workflow copies `src/`, `data/`, `Dockerfile`, and `pyproject.toml` into the Space with
-the Space's own README (its configuration card, in `deploy/huggingface/README.md`), adds the
-demo settings, and pushes. Hugging Face builds the image and starts it on port 8000.
+1. Sign in at https://render.com with GitHub.
+2. Choose **New → Blueprint**, select this repository, and apply `render.yaml`. When asked
+   for `ROOTCITE_LLM_API_KEY`, enter a Groq API key.
+3. In the new service, open **Settings → Deploy Hook** and copy the URL.
+4. In the GitHub repository, **Settings → Secrets and variables → Actions**, add the secret
+   `RENDER_DEPLOY_HOOK_URL` with that URL.
 
-Free Spaces sleep after a period without visitors. The first request after that takes
-about a minute while the Space wakes up.
+From then on, every push to `main` that passes CI triggers the **Deploy demo** workflow,
+which calls the deploy hook. Render builds the image and replaces the running service once
+the health check passes. The workflow can also be run manually from the Actions tab.
+
+Free services sleep after 15 minutes without traffic. The first request after that takes
+about a minute while the service starts.

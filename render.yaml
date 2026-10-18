@@ -1,0 +1,30 @@
+# Render Blueprint for the public demo (free plan).
+# Create it from the Render dashboard: New → Blueprint → select this repository.
+# Deploys are triggered by the "Deploy demo" GitHub Actions workflow after CI passes.
+services:
+  - type: web
+    name: rootcite
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: ROOTCITE_PUBLIC_DEMO
+        value: "true"
+      - key: ROOTCITE_REPO_URL
+        value: https://github.com/sushantm47/rootcite
+      - key: ROOTCITE_ALLOWED_ORIGINS
+        value: https://sushantm47.github.io
+      - key: ROOTCITE_DAILY_RUN_LIMIT
+        value: "100"
+      - key: ROOTCITE_CACHE_TTL_SECONDS
+        value: "86400"
+      - key: ROOTCITE_TOKEN_BUDGET
+        value: "20000"
+      - key: ROOTCITE_MAX_AGENT_STEPS
+        value: "5"
+      - key: ROOTCITE_LLM_API_KEY
+        sync: false

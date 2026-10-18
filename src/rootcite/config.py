@@ -45,6 +45,8 @@ class Settings:
     public_demo: bool = False
     rate_limit_per_minute: int = 0  # 0 = off; public demo defaults to 10
     repo_url: str = ""  # shown on the demo page
+    allowed_origins: tuple[str, ...] = ()  # browser origins allowed to call the API (CORS)
+    daily_run_limit: int = 0  # live agent runs per UTC day; 0 = unlimited, demo default 100
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
@@ -80,6 +82,10 @@ class Settings:
             log_level=get("LOG_LEVEL", cls.log_level),
             public_demo=public_demo,
             repo_url=get("REPO_URL", ""),
+            allowed_origins=tuple(
+                o.strip().rstrip("/") for o in get("ALLOWED_ORIGINS", "").split(",") if o.strip()
+            ),
+            daily_run_limit=int(get("DAILY_RUN_LIMIT", "100" if public_demo else "0")),
             rate_limit_per_minute=int(get("RATE_LIMIT_PER_MINUTE", default_rate)),
         )
         settings.validate()
@@ -90,6 +96,8 @@ class Settings:
             raise ConfigurationError(f"unknown llm_provider: {self.llm_provider}")
         if self.llm_provider == "openai" and not self.llm_api_key:
             raise ConfigurationError("llm_provider=openai requires ROOTCITE_LLM_API_KEY")
+        if self.daily_run_limit < 0:
+            raise ConfigurationError("daily_run_limit must be >= 0")
         if self.rate_limit_per_minute < 0:
             raise ConfigurationError("rate_limit_per_minute must be >= 0")
         if self.index not in {"memory", "postgres"}:

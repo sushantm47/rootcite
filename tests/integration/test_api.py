@@ -111,3 +111,23 @@ def test_transient_model_failures_return_503(make_container):
     container.diagnosis.diagnose = flaky
     r = TestClient(create_app(container)).post("/v1/diagnoses", json=BODY)
     assert r.status_code == 503 and r.headers["retry-after"] == "30"
+
+
+def test_portfolio_origin_may_call_the_api_and_budget_is_reported():
+    settings = Settings(
+        knowledge_dir=KNOWLEDGE_DIR, telemetry_dir=TELEMETRY_DIR,
+        allowed_origins=("https://sushantm47.github.io",), daily_run_limit=1,
+    )
+    client = TestClient(create_app(build_container(settings, metrics_stream=io.StringIO())))
+    origin = {"origin": "https://sushantm47.github.io"}
+
+    health = client.get("/health", headers=origin)
+    assert health.headers["access-control-allow-origin"] == "https://sushantm47.github.io"
+    assert health.json()["live_runs_remaining"] == 1
+    other = client.get("/health", headers={"origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in other.headers
+
+    assert client.post("/v1/diagnoses", json=BODY, headers=origin).status_code == 200
+    spent = client.post("/v1/diagnoses", headers=origin, json={
+        **BODY, "service": "auth-gateway", "title": "TLS handshake failures"})
+    assert spent.status_code == 429 and spent.json()["reason"] == "daily_budget"

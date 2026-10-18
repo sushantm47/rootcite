@@ -28,3 +28,11 @@ class ConfigurationError(RootCiteError):
 
 class LLMRequestError(RootCiteError):
     """The model provider rejected the request (bad model name, invalid key). Not retried."""
+
+
+class QuotaExceededError(RootCiteError):
+    """A usage budget is spent (for example the public demo's daily runs). Maps to HTTP 429."""
+
+    def __init__(self, message: str, retry_after_seconds: float) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds

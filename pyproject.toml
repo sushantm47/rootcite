@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rootcite"
-version = "0.3.0"
+version = "0.4.0"
 description = "Evidence-cited root-cause analysis for production alerts, built as an agentic RAG system"
 readme = "README.md"
 requires-python = ">=3.11"

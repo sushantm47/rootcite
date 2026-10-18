@@ -59,3 +59,37 @@ class SlidingWindowLimiter:
     def __len__(self) -> int:
         with self._lock:
             return len(self._hits)
+
+
+class DailyBudget:
+    """A global allowance of expensive operations per UTC day, such as live model runs."""
+
+    def __init__(self, limit: int, clock: Callable[[], float] = time.time) -> None:
+        if limit < 1:
+            raise ValueError("limit must be >= 1")
+        self._limit = limit
+        self._clock = clock
+        self._day = -1
+        self._used = 0
+        self._lock = threading.Lock()
+
+    def _roll(self) -> None:
+        day = int(self._clock() // 86_400)
+        if day != self._day:
+            self._day, self._used = day, 0
+
+    def try_consume(self) -> bool:
+        with self._lock:
+            self._roll()
+            if self._used >= self._limit:
+                return False
+            self._used += 1
+            return True
+
+    def remaining(self) -> int:
+        with self._lock:
+            self._roll()
+            return self._limit - self._used
+
+    def seconds_until_reset(self) -> float:
+        return 86_400 - (self._clock() % 86_400)

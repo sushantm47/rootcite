@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0]
+
+### Added
+- Daily budget of live agent runs (`ROOTCITE_DAILY_RUN_LIMIT`, 100 by default in demo mode),
+  answered with HTTP 429 and `Retry-After` when spent. Cached answers don't count.
+- CORS support (`ROOTCITE_ALLOWED_ORIGINS`), so a static site can host the demo UI.
+- `live_runs_remaining` in `GET /health`.
+
+### Changed
+- The demo configuration caches answers for 24 hours and caps each run at 20,000 tokens and
+  5 agent steps.
+
+## [0.3.1]
+
+### Changed
+- The public demo now runs on Render's free plan, defined in `render.yaml`. Hugging Face
+  Docker Spaces now require a paid plan.
+- The `Deploy demo` workflow triggers a Render deploy hook, and runs only after CI passes on
+  `main`.
+
+### Removed
+- Hugging Face Space configuration (`deploy/huggingface`).
+
 ## [0.3.0]
 
 ### Added

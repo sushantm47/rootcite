@@ -14,7 +14,7 @@ human approval.
 Much of the time in an incident goes to correlation: linking an alarm to a deploy, a metric,
 and the right runbook. RootCite performs that correlation in seconds and shows its work.
 
-**Live demo:** [huggingface.co/spaces/sushantm47/rootcite](https://huggingface.co/spaces/sushantm47/rootcite)
+**Live demo:** [rootcite.onrender.com](https://rootcite.onrender.com) (the first request after a quiet period takes about a minute while the service starts)
 
 *RootCite was previously named OpsPilot.*
 
@@ -103,6 +103,8 @@ docker compose up --build
 | `ROOTCITE_EMBEDDER` | `hashing` | `hashing` or `sentence-transformers`. |
 | `ROOTCITE_PUBLIC_DEMO` | `false` | Enables per-client rate limiting and disables write endpoints. |
 | `ROOTCITE_RATE_LIMIT_PER_MINUTE` | `0`, or `10` in demo mode | Diagnoses per client per minute. |
+| `ROOTCITE_DAILY_RUN_LIMIT` | `0`, or `100` in demo mode | Live agent runs per UTC day; cached answers don't count. |
+| `ROOTCITE_ALLOWED_ORIGINS` | | Comma-separated browser origins allowed to call the API (CORS). |
 
 The full list is in [.env.example](.env.example).
 
@@ -166,8 +168,8 @@ make lint typecheck test eval
 
 ## Deployment
 
-**Demo.** The `Deploy demo` workflow publishes the application to a Hugging Face Space on
-every push to `main`. See [docs/DEMO.md](docs/DEMO.md).
+**Demo.** The public demo runs on Render's free plan, defined in `render.yaml`. The
+`Deploy demo` workflow deploys it after CI passes on `main`. See [docs/DEMO.md](docs/DEMO.md).
 
 **AWS.** `infra/` contains an AWS CDK stack: ECS Fargate behind an Application Load
 Balancer, RDS PostgreSQL 16, Secrets Manager, Bedrock access through IAM, auto scaling, a
@@ -198,7 +200,7 @@ src/rootcite/
 data/              sample knowledge base and telemetry
 evals/             golden alert set
 infra/             AWS CDK stack
-deploy/            Hugging Face Space configuration
+render.yaml        Render blueprint for the public demo
 docs/              design document, runbook, demo guide
 tests/             unit and integration tests
 ```

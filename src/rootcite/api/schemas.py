@@ -97,6 +97,7 @@ class HealthResponse(BaseModel):
     model: str
     public_demo: bool
     repo_url: str
+    live_runs_remaining: int | None = None
 
 
 class ScenarioOut(BaseModel):

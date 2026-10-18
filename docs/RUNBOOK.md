@@ -34,5 +34,6 @@ position, so re-running upserts instead of duplicating.
 
 The demo allows `ROOTCITE_RATE_LIMIT_PER_MINUTE` diagnoses per client per minute (default
 10). Sustained 429s from many clients usually indicate scripted traffic; lower the limit in
-the Space's variables. If the model provider's free quota is exhausted, diagnoses return 503
-until it resets.
+the Render service's environment variables. When the daily budget of live runs is spent,
+diagnoses return 429 with `reason: daily_budget` until midnight UTC; raise or lower
+`ROOTCITE_DAILY_RUN_LIMIT` to match the provider's free quota.

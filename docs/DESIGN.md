@@ -1,6 +1,6 @@
 # RootCite: Design Document
 
-Status: Implemented (v0.3.0) · Author: Sushant Mudalgi · Previously named OpsPilot
+Status: Implemented (v0.4.0) · Author: Sushant Mudalgi · Previously named OpsPilot
 
 ## 1. Context
 
@@ -113,11 +113,11 @@ through the same SDK, so local development can use an API key.
 **Hashing embedder for CI.** Deterministic, zero-download, and good enough to catch
 regressions in chunking and fusion. Neural embeddings are used where quality matters.
 
-**Public demo on Hugging Face Spaces vs. the AWS stack.** The production design is ECS
-Fargate with RDS and Bedrock (section 5). For a public demo that anyone can try, that stack
-has a fixed monthly cost even when idle. The demo instead runs the same container on a free
-Hugging Face Space, with the in-memory index and an OpenAI-compatible model on Groq's free
-tier, deployed by GitHub Actions. The hexagonal design is what makes this a configuration
+**Public demo on Render vs. the AWS stack.** The production design is ECS Fargate with RDS
+and Bedrock (section 5). For a public demo that anyone can try, that stack has a fixed
+monthly cost even when idle. The demo instead runs the same container on Render's free
+plan, with the in-memory index and an OpenAI-compatible model on Groq's free tier. The
+service is defined in `render.yaml`, and GitHub Actions deploys it only after CI passes. The hexagonal design is what makes this a configuration
 change rather than a fork: the adapters differ, the agent and guardrails are identical.
 
 **OpenAI-compatible adapter.** One adapter covers Groq, OpenAI, Together, vLLM, and Ollama.

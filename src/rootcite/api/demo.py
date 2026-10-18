@@ -37,7 +37,7 @@ SCENARIOS: list[dict[str, str]] = [
 
 
 def client_key(headers: Mapping[str, str], peer: str | None) -> str:
-    """The visitor's address for rate limiting. Behind a proxy (Hugging Face, a load
+    """The visitor's address for rate limiting. Behind a proxy (Render, a load
     balancer) the real client is the first X-Forwarded-For entry. This can be spoofed, which
     is acceptable for a demo limiter; production would trust only its own proxy's header."""
     forwarded = headers.get("x-forwarded-for", "")
